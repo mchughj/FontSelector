@@ -1,7 +1,11 @@
 
 # Font Selector
 
-This is a simple project which made it easier to select fonts for CNC and laser engraving projects.
+This is a simple project which makes it much easier to go through all your fonts and select one for CNC routing or laser engraving.  
+
+If you are like me then you have probably amassed a ton of fonts that you use for random projects for relatives and friends.  I don't like to repeat the same design so I am always looking through fonts and trying to find the 'perfect' one.  I used to use an online resource that would show all the fonts installed on my computer and scroll through that.  But I was constantly wanting to select a few fonts that I thought might be 'good' and then look at them all side-by-side.  This project makes that possible in a way that I think helps.
+
+![Main Screen](/imgs/MainScreen.jpg)
 
 ## Getting started
 
@@ -22,24 +26,25 @@ In the below if your default 'python' is python3 then change the below commands 
 1. Windows:  It is useful to use QtDesigner which can be downloaded from https://build-system.fman.io/qt-designer-download.
 
 1. Create a new virtual environment within the same directory as the git checkout.
+   Ubuntu:
    ```
    cd FontSelector
    python3 -m virtualenv --python=python3 env
    ```
-   or for windows use:
+   Windows:
    ```
    cd FontSelector
    python -m venv env
    ```
 1. Activate the new virtual environment
+   Ubuntu:
    ```
    source env/bin/activate
    ```
-   or 
+   Windows:
    ```
    env\scripts\activate.bat
    ```
-   if you are on windows.
 1. Install, into the new virtual environment, the required python modules for this specific environment.  This will be installed within the virtual env which was activated earlier.
    ```
    python3 -m pip install -r requirements.txt
@@ -52,4 +57,3 @@ In the below if your default 'python' is python3 then change the below commands 
 
 ## Additional
 There is no real documentation here beyond the code.  IF necessary then I will augment at some future date.
-
