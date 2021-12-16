@@ -35,6 +35,7 @@
     </property>
     <addaction name="actionSetPhrase"/>
     <addaction name="actionAddCategory"/>
+    <addaction name="actionRemoveCurrentCategory"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuEdit"/>
@@ -72,6 +73,11 @@
   <action name="actionAddCategory">
    <property name="text">
     <string>Add Category</string>
+   </property>
+  </action>
+  <action name="actionRemoveCurrentCategory">
+   <property name="text">
+    <string>Remove Current Category</string>
    </property>
   </action>
  </widget>

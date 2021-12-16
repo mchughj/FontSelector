@@ -12,7 +12,7 @@ from PyQt5.QtWidgets import QApplication, QWidget, QMainWindow, QLabel, QVBoxLay
     QDialog, QScrollArea, QCheckBox, QHBoxLayout, QFrame, QTabWidget, QPushButton, QToolButton, \
     QSizePolicy 
 from PyQt5.QtGui import QFontDatabase, QFont, QColor, QPalette, QPainter, QPen
-from PyQt5.QtCore import QRect, Qt, QEvent
+from PyQt5.QtCore import QRect, Qt, QEvent, QSettings
 
 
 class FontHoverCard(QWidget):
@@ -59,6 +59,17 @@ class AddCategoryDialog(QDialog):
         if self.category.text() != "":
             self.app.addCategory(self.category.text())
 
+        self.close()
+
+class RemoveCategoryDialog(QDialog):
+    def __init__(self, app):
+        super(RemoveCategoryDialog, self).__init__()
+
+        uic.loadUi('Dialog-RemoveCurrentCategory.ui', self)
+        self.app = app
+
+    def accept(self):
+        self.app.removeCurrentCategory()
         self.close()
 
 
@@ -182,7 +193,7 @@ class FontTabClassified(QWidget):
             for x in unclassified:
                 self.unclassifiedFontItems.append(FontItem(x.family, self.app))
 
-            self.unclassifiedFontListWidget = FontListWidget(self.unclassifiedFontItems, lambda x: True)
+            self.unclassifiedFontListWidget = FontListWidget(self.unclassifiedFontItems, lambda x: x.family not in self.spec)
             self.tabUnclassified.layout.addWidget(self.unclassifiedFontListWidget)
 
             self.addClassificationsButton = QPushButton()
@@ -320,6 +331,21 @@ class FontTabWidget(QWidget):
         self.classified.append(newClassification)
         self.tabs.addTab(newClassification, classificationName)
 
+    def removeCurrentCategory(self):
+        which = self.tabs.currentIndex()
+
+        if which == 0 or which == 1:
+            print ("You cannot remove one of the standard categories")
+            return
+
+        print(f"Going to remove {which} tab out of {self.tabs.count()}")
+
+        c = self.classified[which-2]
+
+        self.app.removeCategory(c.name)
+        self.classified.remove(c)
+        c.setParent(None)
+
         
     def tabItemSelected(self, which):
         if which == 0:
@@ -346,10 +372,13 @@ class FontSelectorApp(QMainWindow):
 
         self.actionSetPhrase.triggered.connect(self.setPhraseClicked)
         self.actionAddCategory.triggered.connect(self.addCategoryClicked)
+        self.actionRemoveCurrentCategory.triggered.connect(self.removeCategoryClicked)
         self.actionExit.triggered.connect(self.close)
+        self.setWindowTitle("Font Selector")
 
         self.fontItems = []
 
+        self._loadSettings()
         self._load()
         self._buildDisplay()
         self._buildHovercard()
@@ -357,12 +386,24 @@ class FontSelectorApp(QMainWindow):
         self.setPhrase("This is a test")
         self.showOnlySelected = False
 
+        # Initial size and position
+        self.resize(self.settings.value("size", QtCore.QSize(1024, 800)))
+        self.move(self.settings.value("pos", QtCore.QPoint(50, 50)))
+
+    def _loadSettings(self):
+        self.settings = QSettings(QSettings.IniFormat, QSettings.SystemScope, 
+                'FontSelector', '__settings')
+        self.settings.setFallbacksEnabled(False)
+
     def closeEvent(self, event):
+        print("Received close event")
         self.hoverCard.close()
+
+        self.settings.setValue("size", self.size())
+        self.settings.setValue("pos", self.pos())
 
     def _buildHovercard(self):
         g = self.geometry()
-        print(f"Geometry of app: {g}")
         self.hoverCard = FontHoverCard()
         self.hoverCard.setParent(self)
         self.hoverCard.setGeometry(QRect(g.width()-400,22,350,27))
@@ -370,6 +411,10 @@ class FontSelectorApp(QMainWindow):
     
     def addCategoryClicked(self):
         dlg = AddCategoryDialog(self)
+        dlg.exec()
+
+    def removeCategoryClicked(self):
+        dlg = RemoveCategoryDialog(self)
         dlg.exec()
 
     def setPhraseClicked(self):
@@ -392,9 +437,18 @@ class FontSelectorApp(QMainWindow):
     def keyPressEvent(self, event):
         k = event.key()
         if k == QtCore.Qt.Key_Q or k == QtCore.Qt.Key_Escape:
-            self.deleteLater()
+            self.close()
+        elif k == QtCore.Qt.Key_A:
+            self.addCategoryClicked()
+        elif k == QtCore.Qt.Key_R:
+            self.removeCategoryClicked()
         elif k == QtCore.Qt.Key_S:
             self.toggleSelected()
+
+    def resizeEvent(self, a0: QtGui.QResizeEvent) -> None:
+        super().resizeEvent(a0)
+        g = self.geometry()
+        self.hoverCard.setGeometry(QRect(g.width()-400,22,350,27))
 
     def toggleSelected(self):
         self.showOnlySelected = not self.showOnlySelected
@@ -402,6 +456,13 @@ class FontSelectorApp(QMainWindow):
             self.fontTabWidget.showSelected()
         else:
             self.fontTabWidget.showAll()
+
+    def removeCurrentCategory(self):
+        self.fontTabWidget.removeCurrentCategory()
+
+    def removeCategory(self, name):
+        del self.classifications[name]
+        self._save()
 
     def _buildDisplay(self):
         self.fontItems = []
