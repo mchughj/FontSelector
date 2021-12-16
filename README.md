@@ -5,7 +5,7 @@ This is a simple project which makes it much easier to go through all your fonts
 
 If you are like me then you have probably amassed a ton of fonts that you use for random projects for relatives and friends.  I don't like to repeat the same design so I am always looking through fonts and trying to find the 'perfect' one.  I used to use an online resource that would show all the fonts installed on my computer and scroll through that.  But I was constantly wanting to select a few fonts that I thought might be 'good' and then look at them all side-by-side.  This project makes that possible in a way that I think helps.
 
-![Main Screen](/imgs/MainScreen.jpg)
+![Main Screen](/imgs/MainScreen.JPG)
 
 ## Getting started
 
