@@ -3,16 +3,55 @@ import sys
 import cv2
 import numpy as np
 import json
-import copy
+import re
 
 from PIL import Image 
 
 from PyQt5 import uic, QtGui, QtCore, QtWidgets
 from PyQt5.QtWidgets import QApplication, QWidget, QMainWindow, QLabel, QVBoxLayout, \
     QDialog, QScrollArea, QCheckBox, QHBoxLayout, QFrame, QTabWidget, QPushButton, QToolButton, \
-    QSizePolicy 
+    QSizePolicy, QLineEdit, QStyle
 from PyQt5.QtGui import QFontDatabase, QFont, QColor, QPalette, QPainter, QPen
 from PyQt5.QtCore import QRect, Qt, QEvent, QSettings
+
+class SearchBox(QFrame):
+    def __init__(self, app):
+        QWidget.__init__(self)
+       
+        layout = QHBoxLayout()
+
+        self.setStyleSheet('background-color: rgb(250,250,250)')  
+
+        self.b = QPushButton()
+        self.b.setParent(self)
+        self.b.clicked.connect(lambda x: app.setShowSearch(False))
+
+        pixmapi = getattr(QStyle, 'SP_TitleBarCloseButton')
+        icon = self.style().standardIcon(pixmapi)
+        self.b.setIcon(icon)
+
+        self.l = QLabel()
+        self.l.setFont(QFont("Arial Black", pointSize=14))
+        self.l.setText("Search: ")
+        self.l.setParent(self)
+
+        self.editBox = QLineEdit()
+        self.editBox.setFont(QFont("Arial Black", pointSize=12))
+
+        self.setLayout(layout)
+        layout.addWidget(self.b)
+        layout.addWidget(self.l)
+        layout.addWidget(self.editBox)
+
+        self.setFrameStyle(QFrame.Panel)
+        self.editBox.textChanged.connect(app.applySearch)
+
+    def grabFocus(self):
+        self.editBox.setFocusPolicy(Qt.StrongFocus)
+        self.editBox.setFocus(Qt.OtherFocusReason)
+
+    def clear(self):
+        self.editBox.setText("")
 
 
 class FontHoverCard(QWidget):
@@ -148,6 +187,7 @@ class FontListWidget(QScrollArea):
         self.setWidgetResizable(True)
 
         self.setWidget(self.widget)
+        self.subList = []
 
     def count(self):
         return self.vbox.count()
@@ -164,6 +204,10 @@ class FontListWidget(QScrollArea):
         for t in self.fontItems:
             if self.evalVisible(t):
                 self.vbox.addWidget(t)
+    
+    def setFontListItems(self, f):
+        self.fontItems = f
+        self.refresh()
 
 
 class FontTabClassified(QWidget):
@@ -346,14 +390,19 @@ class FontTabWidget(QWidget):
         self.classified.remove(c)
         c.setParent(None)
 
+    def showOnlyTheseFontListItemsInAllFontList(self, l):
+        self.tabAllFontListWidget.setFontListItems(l)
         
     def tabItemSelected(self, which):
+        # Anytime someone switches the topmost tabs the search box will be hidden
         if which == 0:
             self.tabAllFontListWidget.refresh()
-        elif which == 1:
-            self.tabSelectedFontListWidget.refresh()
         else:
-            self.classified[which-2].refresh()
+            self.app.setShowSearch(False)
+            if which == 1:
+                self.tabSelectedFontListWidget.refresh()
+            else:
+                self.classified[which-2].refresh()
     
     def showSelected(self):
         self.tabs.setCurrentIndex(1)
@@ -374,17 +423,19 @@ class FontSelectorApp(QMainWindow):
         self.actionAddCategory.triggered.connect(self.addCategoryClicked)
         self.actionRemoveCurrentCategory.triggered.connect(self.removeCategoryClicked)
         self.actionExit.triggered.connect(self.close)
+        self.actionSearch.triggered.connect(lambda x: self.setShowSearch(True))
         self.setWindowTitle("Font Selector")
 
         self.fontItems = []
 
         self._loadSettings()
         self._load()
+        self._buildSearchBox()
         self._buildDisplay()
         self._buildHovercard()
 
+        self.searchBox.raise_()
         self.setPhrase("This is a test")
-        self.showOnlySelected = False
 
         # Initial size and position
         self.resize(self.settings.value("size", QtCore.QSize(1024, 800)))
@@ -408,6 +459,14 @@ class FontSelectorApp(QMainWindow):
         self.hoverCard.setParent(self)
         self.hoverCard.setGeometry(QRect(g.width()-400,22,350,27))
         self.hoverCard.show()
+
+    def _buildSearchBox(self):
+        self.showSearch = False
+        g = self.geometry()
+        self.searchBox = SearchBox(self)
+        self.searchBox.setParent(self)
+        self.searchBox.setGeometry(QRect(g.width()-600,53,555,65))
+        self.searchBox.setHidden(not self.showSearch)
     
     def addCategoryClicked(self):
         dlg = AddCategoryDialog(self)
@@ -429,6 +488,15 @@ class FontSelectorApp(QMainWindow):
         for t in self.fontItems:
             t.setText(text)
 
+    def applySearch(self, text):
+        # Find the subset of the font items
+        fontItemsToDisplay = []
+        for t in self.fontItems:
+            if re.search(text, t.family, re.IGNORECASE):
+                fontItemsToDisplay.append(t)
+        self.fontTabWidget.showOnlyTheseFontListItemsInAllFontList(fontItemsToDisplay)
+        
+
     def addCategory(self, name):
         self.classifications[name] = dict()
         self.fontTabWidget.createNewClassifierTab(name, self.classifications[name])
@@ -436,26 +504,33 @@ class FontSelectorApp(QMainWindow):
 
     def keyPressEvent(self, event):
         k = event.key()
-        if k == QtCore.Qt.Key_Q or k == QtCore.Qt.Key_Escape:
+        if k == QtCore.Qt.Key_Q:
             self.close()
+        elif k == QtCore.Qt.Key_Escape:
+            self.setShowSearch(False)
         elif k == QtCore.Qt.Key_A:
             self.addCategoryClicked()
         elif k == QtCore.Qt.Key_R:
             self.removeCategoryClicked()
         elif k == QtCore.Qt.Key_S:
-            self.toggleSelected()
+            self.setShowSearch(not self.showSearch)
 
     def resizeEvent(self, a0: QtGui.QResizeEvent) -> None:
         super().resizeEvent(a0)
         g = self.geometry()
         self.hoverCard.setGeometry(QRect(g.width()-400,22,350,27))
+        self.searchBox.setGeometry(QRect(g.width()-600,53,555,65))
 
-    def toggleSelected(self):
-        self.showOnlySelected = not self.showOnlySelected
-        if self.showOnlySelected:
-            self.fontTabWidget.showSelected()
+    def setShowSearch(self, show):
+        print(f"setShowSearch - onEnter; current showSearch: {self.showSearch}, newValue: {show}")
+        self.showSearch = show 
+        self.searchBox.setHidden(not self.showSearch)
+        if self.showSearch:
+            self.searchBox.grabFocus()
+            self.fontTabWidget.showOnlyTheseFontListItemsInAllFontList(self.fontItems)
         else:
-            self.fontTabWidget.showAll()
+            self.searchBox.clear()
+            self.fontTabWidget.showOnlyTheseFontListItemsInAllFontList(self.fontItems)
 
     def removeCurrentCategory(self):
         self.fontTabWidget.removeCurrentCategory()
