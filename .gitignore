@@ -2,6 +2,7 @@
 # Mine
 classifications-backup.json
 CollapsableBox.py
+.vim*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
